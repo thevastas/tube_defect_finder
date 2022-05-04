@@ -7,6 +7,11 @@ import os
 
 
 def process_single_image(img_path):
+
+    full_array = np.empty((0, 3), dtype=int)
+
+
+
     if os.path.isfile(f):
         img = cv.imread(f)
         img_gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
@@ -119,37 +124,49 @@ def process_single_image(img_path):
                         if defect_size > cc * 0.294:
                             cv.putText(masked_sub_color, str(defect_size), (xx, yy - 30), cv.FONT_HERSHEY_SIMPLEX, 2,
                                        invalid, 1, cv.LINE_AA)
+                            full_array = np.vstack((full_array, [defect_size, 1, 0]))
                         else:
                             if defect_size > cc * 0.0735:
                                 if first_zone_defect_counter < 2:
                                     cv.putText(masked_sub_color, str(defect_size), (xx, yy - 30),
                                                cv.FONT_HERSHEY_SIMPLEX, 2, valid, 1, cv.LINE_AA)
+                                    full_array = np.vstack((full_array, [defect_size, 1, 1]))
                                     first_zone_defect_counter += 1
                                 else:
                                     cv.putText(masked_sub_color, str(defect_size), (xx, yy - 30),
                                                cv.FONT_HERSHEY_SIMPLEX, 2, invalid, 1, cv.LINE_AA)
+                                    full_array = np.vstack((full_array, [defect_size, 1, 0]))
                             else:
                                 cv.putText(masked_sub_color, str(defect_size), (xx, yy - 30),
                                            cv.FONT_HERSHEY_SIMPLEX, 2, valid, 1, cv.LINE_AA)
+                            full_array = np.vstack((full_array, [defect_size, 1, 1]))
 
                     elif math.sqrt((cX - center[0]) ** 2 + (cY - center[1]) ** 2) < 19.2 * cc:
                         if defect_size > cc * 0.588:
                             cv.putText(masked_sub_color, str(defect_size), (xx, yy - 30), cv.FONT_HERSHEY_SIMPLEX, 2,
                                        invalid, 1, cv.LINE_AA)
+                            full_array = np.vstack((full_array, [defect_size, 2, 0]))
                         else:
                             if defect_size > cc * 0.1:
                                 if second_zone_defect_counter < 2:
                                     cv.putText(masked_sub_color, str(defect_size), (xx, yy - 30),
                                                cv.FONT_HERSHEY_SIMPLEX, 2, valid, 1, cv.LINE_AA)
+                                    full_array = np.vstack((full_array, [defect_size, 2, 1]))
                                     second_zone_defect_counter += 1
                                 else:
                                     cv.putText(masked_sub_color, str(defect_size), (xx, yy - 30),
                                                cv.FONT_HERSHEY_SIMPLEX, 2, invalid, 1, cv.LINE_AA)
+                                    full_array = np.vstack((full_array, [defect_size, 2, 0]))
                             else:
                                 cv.putText(masked_sub_color, str(defect_size), (xx, yy - 30),
                                            cv.FONT_HERSHEY_SIMPLEX, 2, valid, 1, cv.LINE_AA)
-                    print(area)
-            return masked_sub_color
+                    full_array = np.vstack((full_array, [defect_size, 2, 1]))
+                    #print(area)
+            #print(dataframe_defects)
+            #print(defect_array)
+            dataframe_defects = pd.DataFrame(full_array, columns=['defect_size', 'zone', 'allowed'])
+            print(dataframe_defects)
+            return masked_sub_color, dataframe_defects
         else:
             return None
 
@@ -169,27 +186,33 @@ if __name__ == '__main__':
     # input and output directories
     input_directory = "./data/images/"
     output_directory = "./data/output/"
-    single_image = "00224.jpg"
+    csv_directory = "./data/csv/"
+    single_image = "00279.jpg"
 
     if process_everything:
         for filename in os.listdir(input_directory):
+
             f = os.path.join(input_directory, filename)
             print(f)
-            processed_image = process_single_image(f)
+            processed_image, dataframe = process_single_image(f)
             fout = os.path.join(output_directory, os.path.basename(filename))
             if processed_image is not None:
                 cv.imwrite(fout, processed_image)
+                dataframe.to_csv(os.path.join(csv_directory, os.path.basename(filename).split('.')[0] + '.csv'), index=False, sep='\t')
             else:
                 print("No circles found, output file not created")
     else:
+        #dataframe = pd.DataFrame(columns=['defect_size', 'zone', 'defect_type'])
         f = os.path.join(input_directory, single_image)
         print(f)
-        processed_image = process_single_image(f)
+        processed_image, dataframe = process_single_image(f)
         if processed_image is not None:
             cv.namedWindow("subtraction", cv.WINDOW_NORMAL)
             cv.resizeWindow("subtraction", 800, 800)
             cv.imshow("subtraction", processed_image)
             cv.imwrite(os.path.join(output_directory, single_image), processed_image)
+            dataframe.to_csv(os.path.join(csv_directory, os.path.basename(single_image).split('.')[0] + '.csv'),
+                             index=False, sep='\t')
         else:
             print("No circles found, output file not created")
 
